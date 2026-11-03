@@ -116,18 +116,18 @@ classDiagram
 
 ## 模块与依赖
 
-| 产物 | 模块 | 说明 |
+| 产物 (Artifact) | 模块 | 说明 |
 |------|------|------|
-| `ads-core` | `:ads-core` | 公共 API、`AdsManager`、UMP |
-| `ads-admob` | `:ads-admob` | AdMob 适配器（传递依赖 core） |
-| `ads-applovin` | `:ads-applovin` | AppLovin MAX 适配器（传递依赖 core） |
-| `ads` | `:ads` | 全量包（core + admob + applovin） |
+| `AdsKit-core` | `:ads-core` | 公共 API、`AdsManager`、UMP |
+| `AdsKit-admob` | `:ads-admob` | AdMob 适配器（传递依赖 core） |
+| `AdsKit-applovin` | `:ads-applovin` | AppLovin MAX 适配器（传递依赖 core） |
+| `AdsKit` | `:ads` | 全量包（core + admob + applovin） |
 
 ```kotlin
 // JitPack — 按需选择
-implementation("com.github.e-hai.AdsKit-Android:ads-admob:<version>")
-implementation("com.github.e-hai.AdsKit-Android:ads-applovin:<version>")
-implementation("com.github.e-hai.AdsKit-Android:ads:<version>") // 全量
+implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:<version>")
+implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:<version>")
+implementation("com.github.e-hai.AdsKit-Android:AdsKit:<version>") // 全量包
 ```
 
 | 场景 | 依赖 |
