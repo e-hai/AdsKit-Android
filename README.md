@@ -1,4 +1,4 @@
-# AdsKit SDK
+# AdsKit-Android
 
 Android 广告聚合 SDK：统一封装 AdMob / AppLovin MAX，宿主通过单一门面 `AdsManager` 接入。
 
@@ -15,10 +15,10 @@ flowchart TB
   end
 
   subgraph Artifacts["发布产物"]
-    Ads[":ads / AdsKit<br/>全量包"]
-    AdMob[":ads-admob / AdsKit-admob"]
-    AppLovin[":ads-applovin / AdsKit-applovin"]
-    Core[":ads-core / AdsKit-core<br/>AdsManager · UMP · API"]
+    Ads[":ads / 全量包"]
+    AdMob[":ads-admob"]
+    AppLovin[":ads-applovin"]
+    Core[":ads-core<br/>AdsManager · UMP · API"]
   end
 
   subgraph SDKs["底层 SDK"]
@@ -118,16 +118,16 @@ classDiagram
 
 | 产物 | 模块 | 说明 |
 |------|------|------|
-| `AdsKit-core` | `:ads-core` | 公共 API、`AdsManager`、UMP |
-| `AdsKit-admob` | `:ads-admob` | AdMob 适配器（传递依赖 core） |
-| `AdsKit-applovin` | `:ads-applovin` | AppLovin MAX 适配器（传递依赖 core） |
-| `AdsKit` | `:ads` | 全量包（core + admob + applovin，向后兼容） |
+| `ads-core` | `:ads-core` | 公共 API、`AdsManager`、UMP |
+| `ads-admob` | `:ads-admob` | AdMob 适配器（传递依赖 core） |
+| `ads-applovin` | `:ads-applovin` | AppLovin MAX 适配器（传递依赖 core） |
+| `ads` | `:ads` | 全量包（core + admob + applovin） |
 
 ```kotlin
 // JitPack — 按需选择
-implementation("com.github.e-hai:AdsKit-admob:<version>")
-implementation("com.github.e-hai:AdsKit-applovin:<version>")
-implementation("com.github.e-hai:AdsKit:<version>") // 全量
+implementation("com.github.e-hai.AdsKit-Android:ads-admob:<version>")
+implementation("com.github.e-hai.AdsKit-Android:ads-applovin:<version>")
+implementation("com.github.e-hai.AdsKit-Android:ads:<version>") // 全量
 ```
 
 | 场景 | 依赖 |
