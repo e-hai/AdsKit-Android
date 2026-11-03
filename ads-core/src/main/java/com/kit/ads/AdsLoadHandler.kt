@@ -1,8 +1,6 @@
 package com.kit.ads
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import com.kit.ads.provider.AdsProviderAdapter
 import com.kit.ads.provider.AdsProviderListener
 
