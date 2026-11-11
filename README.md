@@ -114,29 +114,99 @@ classDiagram
   AdsLoadHandler ..> AdsListener : 主线程回调
 ```
 
-## 模块与依赖
+## 接入与依赖 (GitHub Packages)
 
-| 产物 (Artifact) | 模块 | 说明 |
-|------|------|------|
-| `AdsKit-core` | `:ads-core` | 公共 API、`AdsManager`、UMP |
-| `AdsKit-admob` | `:ads-admob` | AdMob 适配器（传递依赖 core） |
-| `AdsKit-applovin` | `:ads-applovin` | AppLovin MAX 适配器（传递依赖 core） |
-| `AdsKit` | `:ads` | 全量包（core + admob + applovin） |
+SDK 官方包统一发布于 **GitHub Packages** Maven 仓库（相比 JitPack 构建更加稳定、依赖下载迅速，直接由 GitHub Actions 官方流水线验证并发布）。
 
-```kotlin
-// JitPack — 按需选择
-implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:<version>")
-implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:<version>")
-implementation("com.github.e-hai.AdsKit-Android:AdsKit:<version>") // 全量包
+### 1. 配置仓库与认证凭据
+
+> [!NOTE]
+> GitHub Packages 要求必须通过认证（Personal Access Token）才能拉取包。
+
+#### 步骤 1：准备 GitHub Token
+前往 [GitHub Settings → Developer Settings → Personal Access Tokens](https://github.com/settings/tokens) 创建一个具有 **`read:packages`** 权限的 Token。
+
+#### 步骤 2：配置本地凭据（全局或工程）
+在用户家目录的 `~/.gradle/gradle.properties`（推荐，避免将 Token 意外提交至代码库）：
+```properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.key=YOUR_GITHUB_PERSONAL_ACCESS_TOKEN
+```
+或在 CI / 部署环境中配置系统环境变量：
+```bash
+export GITHUB_ACTOR="YOUR_GITHUB_USERNAME"
+export GITHUB_TOKEN="YOUR_GITHUB_PERSONAL_ACCESS_TOKEN"
 ```
 
-| 场景 | 依赖 |
-|------|------|
-| 仅 AdMob | `AdsKit-admob` |
-| 仅 AppLovin | `AdsKit-applovin` |
-| 运行时切换 Provider | `AdsKit-admob` + `AdsKit-applovin`（或 `AdsKit`） |
+#### 步骤 3：在工程中添加 Maven 仓库
 
-本地开发默认：`implementation(project(":ads"))`。
+**Kotlin DSL (`settings.gradle.kts`)**：
+```kotlin
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/e-hai/AdsKit-Android")
+            credentials {
+                username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("GITHUB_ACTOR") ?: ""
+                password = providers.gradleProperty("gpr.key").orNull ?: System.getenv("GITHUB_TOKEN") ?: ""
+            }
+        }
+    }
+}
+```
+
+**Groovy DSL (`settings.gradle`)**：
+```groovy
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/e-hai/AdsKit-Android")
+            credentials {
+                username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("GITHUB_ACTOR") ?: ""
+                password = providers.gradleProperty("gpr.key").orNull ?: System.getenv("GITHUB_TOKEN") ?: ""
+            }
+        }
+    }
+}
+```
+
+### 2. 引入 SDK 依赖
+
+根据所需广告平台按需引入：
+
+| 产物 (Artifact) | 模块 | 说明 |
+|---|---|---|
+| `AdsKit` | `:ads` | **全量包**（包含 core + admob + applovin，支持运行时双平台动态切换） |
+| `AdsKit-admob` | `:ads-admob` | **AdMob 瘦包**（仅集成 AdMob，传递依赖 core，大幅缩减包体积） |
+| `AdsKit-applovin` | `:ads-applovin` | **AppLovin 瘦包**（仅集成 AppLovin MAX，传递依赖 core） |
+| `AdsKit-core` | `:ads-core` | **核心包**（仅公共 API、`AdsManager`、UMP，适合自研适配器扩展） |
+
+**Kotlin DSL (`app/build.gradle.kts`)**：
+```kotlin
+dependencies {
+    // 方案 A：全量包（推荐，开箱即用）
+    implementation("com.github.e-hai.AdsKit-Android:AdsKit:1.0.0")
+
+    // 方案 B：AdMob 瘦包（仅包含 AdMob 及中介）
+    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:1.0.0")
+
+    // 方案 C：AppLovin 瘦包（仅包含 AppLovin MAX 及中介）
+    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:1.0.0")
+}
+```
+
+> **💡 从 JitPack 迁移指南**：
+> 1. 将 `settings.gradle.kts` 中的 `maven { url = uri("https://jitpack.io") }` 替换为上述带有鉴权的 GitHub Packages 仓库地址。
+> 2. 依赖坐标格式完全统一，无需变更 group 与 artifact 命名规则。
+> 3. 本地调试仍可直接通过模块引入：`implementation(project(":ads"))`。
 
 ### Sample 配置（`local.properties`）
 
@@ -281,15 +351,28 @@ override fun onDestroy() {
 
 ## 构建与发布
 
+### 本地编译与单测
 ```bash
-./gradlew publishToMavenLocal -Pgroup=com.github.ci -Pversion=test
 ./gradlew :ads-core:testDebugUnitTest
 ./gradlew :sample:assembleDebug
-./scripts/check-artifact-sizes.sh com.github.ci test  # 可选，AAR/APK 体积门禁
 ```
 
-- 版本号：统一在 `gradle/libs.versions.toml` → `sdkVersion`
-- CI：`.github/workflows/build.yml`（publish、单测、Sample 构建、瘦身产物校验）
-- JitPack：`jitpack.yml`（JDK 17）
+### 本地发布与体积校验
+```bash
+./gradlew publishToMavenLocal -Pgroup=com.github.ci -Pversion=test
+./scripts/check-artifact-sizes.sh com.github.ci test  # AAR/APK 体积门禁校验
+```
+
+### 发布到 GitHub Packages
+1. **自动发布**：打 Tag（如 `1.0.1` 或 `v1.0.1`）推送到远端，触发 `.github/workflows/publish.yml` 自动编译、测试并发布至 GitHub Packages。
+2. **手动触发**：在 GitHub Actions 页面选择 `Publish to GitHub Packages` workflow，输入版本号即可手动触发。
+3. **本地发布到 GitHub Packages**：
+   ```bash
+   ./gradlew publishReleasePublicationToGitHubPackagesRepository -Pgpr.user=e-hai -Pgpr.key=YOUR_GITHUB_TOKEN
+   ```
+
+- 版本号：统一维护在 `gradle/libs.versions.toml` → `sdkVersion`
+- CI：`.github/workflows/build.yml`（PR / 主分支构建与体积校验）
+- CD：`.github/workflows/publish.yml`（GitHub Packages 自动发布）
 
 更多实现细节、SPI、ProGuard、命名约定见 **`AGENTS.md`**。

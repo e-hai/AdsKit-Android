@@ -68,6 +68,9 @@ AdsKit-Android/
 │       ├── App.kt                # Application subclass demonstrating SDK initialization
 │       ├── MainActivity.kt       # Full 1:1 demo screen (Compose)
 │       └── SampleConfig.kt       # Test ad unit IDs and provider config constants
+├── .github/workflows/
+│   ├── build.yml                 # CI verification: unit tests, sample build, AAR size limits
+│   └── publish.yml               # CD automated release to GitHub Packages
 ├── gradle/
 │   ├── libs.versions.toml        # Version catalog (AGP, Kotlin, SDK versions, dependencies)
 │   └── artifact-size-limits.properties # CI AAR / APK size limits
@@ -76,7 +79,7 @@ AdsKit-Android/
 ├── build.gradle.kts              # Root build file (plugin declarations only)
 ├── settings.gradle.kts           # Module inclusion (:ads-core, :ads-admob, :ads-applovin, :ads, :sample)
 ├── gradle.properties
-├── jitpack.yml                   # JitPack build definition (JDK 17, publishToMavenLocal)
+├── jitpack.yml                   # Legacy JitPack build definition (JDK 17)
 ├── README.md                     # Chinese developer documentation
 └── AGENTS.md                     # This agent guide
 ```
@@ -185,9 +188,9 @@ Logcat filter: Use `tag:AdsKit` to inspect all mediation operations.
 | JDK | `17` | Minimum compiler and runtime Java version |
 | Compile / Target / Min SDK | `37` / `36` / `24` | Android 7.0 (Nougat) minimum |
 
-### JitPack Artifact Coordinates
+### GitHub Packages Artifact Coordinates
 
-The repository publishes to JitPack under repository group `com.github.e-hai.AdsKit-Android`:
+The repository publishes to **GitHub Packages** (`https://maven.pkg.github.com/e-hai/AdsKit-Android`) under group `com.github.e-hai.AdsKit-Android`:
 
 ```kotlin
 // Option 1: AdMob only (slim)
@@ -205,7 +208,7 @@ implementation("com.github.e-hai.AdsKit-Android:AdsKit-core:<version>")
 
 ---
 
-## 8. Verification & Test Commands
+## 8. Verification & Publishing Commands
 
 ### Run Unit Tests
 Unit tests use Robolectric and verify the init state machine, factory SPI discovery, and cache TTL behavior:
@@ -220,8 +223,15 @@ Unit tests use Robolectric and verify the init state machine, factory SPI discov
 
 ### Validate Maven Local Publication & AAR Sizes
 ```bash
-./gradlew clean publishToMavenLocal -Pgroup=com.github.e-hai.AdsKit-Android -Pversion=test -x test -x lint
-./scripts/check-artifact-sizes.sh
+./gradlew clean publishToMavenLocal -Pgroup=com.github.ci -Pversion=test -x test -x lint
+./scripts/check-artifact-sizes.sh com.github.ci test
+```
+
+### Publish to GitHub Packages
+Automated via `.github/workflows/publish.yml` on tag pushes (`1.0.1`, `v1.0.1`) or manual workflow dispatch.
+For manual command-line publishing:
+```bash
+./gradlew publishReleasePublicationToGitHubPackagesRepository -Pgpr.user=e-hai -Pgpr.key=$GITHUB_TOKEN -Pversion=<version>
 ```
 
 ---
@@ -232,7 +242,8 @@ Unit tests use Robolectric and verify the init state machine, factory SPI discov
 2. **Do NOT use legacy AGP APIs**: `libraryVariants`, `applicationVariants`, and `android.kotlinOptions {}` are obsolete and removed. Use the `androidComponents` Variant API.
 3. **Preserve SPI Registration**: Whenever a new adapter class is added or modified, ensure the corresponding SPI file in `resources/META-INF/services/com.kit.ads.provider.AdsProviderAdapterRegistrar` is preserved.
 4. **Maintain Backward Compatibility**: Do not remove existing method overloads in `AdsListener` or `AdsEntity`. Always provide sensible defaults for new callback methods.
-5. **Keep `maven-publish` on all SDK modules**: JitPack relies on `publishToMavenLocal`.
-6. **No Cross-Platform Coupling**: Keep Android and iOS repositories 100% separate. Do not reference iOS types or files.
-7. **Environment Constraints (Gradle UDP Socket)**:
+5. **Keep `maven-publish` on all SDK modules**: Both MavenLocal verification and GitHub Packages publishing rely on `maven-publish`.
+6. **Preserve POM SCM / URL**: GitHub Packages relies on the POM metadata and SCM block (`https://github.com/e-hai/AdsKit-Android`) to associate published packages with the repository.
+7. **No Cross-Platform Coupling**: Keep Android and iOS repositories 100% separate. Do not reference iOS types or files.
+8. **Environment Constraints (Gradle UDP Socket)**:
    Gradle 9 requires UDP socket binding for cross-process file lock contention (`DefaultFileLockCommunicator`). In strictly sandboxed environments where UDP socket binding is prohibited, Gradle will fail to start. In such cases, use an unsandboxed/escalated shell or run tests in CI.
