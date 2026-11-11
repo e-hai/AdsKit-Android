@@ -193,13 +193,13 @@ dependencyResolutionManagement {
 ```kotlin
 dependencies {
     // 方案 A：全量包（推荐，开箱即用）
-    implementation("com.github.e-hai.AdsKit-Android:AdsKit:1.0.0")
+    implementation("com.github.e-hai.AdsKit-Android:AdsKit:1.0.1")
 
     // 方案 B：AdMob 瘦包（仅包含 AdMob 及中介）
-    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:1.0.0")
+    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:1.0.1")
 
     // 方案 C：AppLovin 瘦包（仅包含 AppLovin MAX 及中介）
-    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:1.0.0")
+    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:1.0.1")
 }
 ```
 
