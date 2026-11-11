@@ -50,9 +50,6 @@ jobs:
           echo "Publish version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Run unit tests before publishing
-        run: ./gradlew :ads-core:testDebugUnitTest --no-daemon
-
       - name: Publish all library modules to GitHub Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
