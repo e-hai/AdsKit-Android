@@ -47,7 +47,7 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 from(components["release"])
-                artifactId = "AdsKit-core"
+                artifactId = "adskit-core"
 
                 pom {
                     name.set("AdsKit-core")

@@ -39,7 +39,7 @@ jobs:
       - name: Verify slim provider artifacts
         run: |
           BASE="$HOME/.m2/repository/com/github/ci"
-          for artifact in AdsKit-core AdsKit-admob AdsKit-applovin AdsKit; do
+          for artifact in adskit-core adskit-admob adskit-applovin adskit; do
             test -f "$BASE/$artifact/0.0.0-ci/$artifact-0.0.0-ci.aar" \
               || (echo "Missing $artifact AAR" && exit 1)
           done

@@ -30,7 +30,7 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 from(components["release"])
-                artifactId = "AdsKit-applovin"
+                artifactId = "adskit-applovin"
 
                 pom {
                     name.set("AdsKit-applovin")
