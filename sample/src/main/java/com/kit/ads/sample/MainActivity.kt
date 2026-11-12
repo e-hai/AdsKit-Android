@@ -1,6 +1,7 @@
 package com.kit.ads.sample
 
 import android.os.Bundle
+import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
@@ -38,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.kit.ads.AdCallback
 import com.kit.ads.AdsEntity
-import com.kit.ads.AdsLogger
 import com.kit.ads.AdsManager
 import com.kit.ads.AdsPaidEvent
 import com.kit.ads.AdsRequest
@@ -85,13 +85,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun appendLog(message: String) {
-        AdsLogger.d("AdsKit-Sample", message)
+        if (BuildConfig.DEBUG) {
+            Log.d("AdsKit-Sample", message)
+        }
     }
 
     private fun initializeProvider(provider: AdsProviderType, onResult: (Boolean) -> Unit) {
         AdsManager.initialize(
-            application,
-            SampleConfig.providerConfig(provider),
+            context = application,
+            config = SampleConfig.providerConfig(provider),
+            logEnabled = BuildConfig.DEBUG,
+            debugEnabled = BuildConfig.DEBUG,
         ) { success ->
             appendLog("initialize($provider) success=$success")
             onResult(success)
@@ -107,7 +111,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestUmp(onResult: (Boolean) -> Unit) {
-        UMP.start(this) { gathered ->
+        val umpTestDeviceIds = BuildConfig.ADMOB_TEST_DEVICE_ID
+            .takeIf { it.isNotEmpty() }
+            ?.let(::listOf)
+            ?: emptyList()
+        UMP.start(
+            activity = this,
+            debugEnabled = BuildConfig.DEBUG,
+            umpTestDeviceIds = umpTestDeviceIds,
+        ) { gathered ->
             appendLog("UMP consent gathered=$gathered")
             onResult(gathered)
         }
@@ -238,11 +250,26 @@ private fun SampleDemoScreen(
         ) {
             Text("AdsKit Sample", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "演示初始化、UMP、预加载、三种广告类型，以及 Provider 切换。",
+                "演示 UMP 隐私同意、SDK 初始化、预加载、多种广告类型，以及 Provider 切换。",
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            SectionTitle("1. Provider 配置")
+            SectionTitle("1. 隐私同意（UMP）")
+            Text("状态: $consentStatus", style = MaterialTheme.typography.bodySmall)
+            ActionButton("请求 UMP 同意") {
+                onRequestUmp { gathered ->
+                    consentStatus = if (gathered) "已同意，可初始化广告" else "未同意或受限"
+                    log("UMP 结果: $consentStatus")
+                }
+            }
+            Text(
+                "建议流程：UMP → 初始化 SDK → 加载广告（符合欧盟 GDPR 及三方中介隐私合规要求）。",
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            HorizontalDivider()
+
+            SectionTitle("2. Provider 配置与初始化")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProviderChip("AdMob", selectedProvider == AdsProviderType.ADMOB) {
                     selectedProvider = AdsProviderType.ADMOB
@@ -275,23 +302,6 @@ private fun SampleDemoScreen(
                 }
             }
 
-            HorizontalDivider()
-
-            SectionTitle("2. 隐私同意（UMP）")
-            Text("状态: $consentStatus", style = MaterialTheme.typography.bodySmall)
-            ActionButton("请求 UMP 同意") {
-                onRequestUmp { gathered ->
-                    consentStatus = if (gathered) "已同意，可请求广告" else "未同意或受限"
-                    log("UMP 结果: $consentStatus")
-                }
-            }
-            Text(
-                when (selectedProvider) {
-                    AdsProviderType.ADMOB -> "建议流程：初始化 → UMP → 加载广告。"
-                    AdsProviderType.APPLOVIN -> "建议流程：UMP → 初始化 → 加载广告（MAX 会读取 UMP 写入的 TCF 字符串）。"
-                },
-                style = MaterialTheme.typography.bodySmall,
-            )
             if (selectedProvider == AdsProviderType.APPLOVIN && !SampleConfig.AppLovinUnit.hasRealUnits()) {
                 Text(
                     "AppLovin 广告位未配置：在 local.properties 设置 applovin.ad.unit.* 后重新编译。",

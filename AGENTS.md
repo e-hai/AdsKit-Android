@@ -13,6 +13,7 @@ This document is specifically crafted for AI coding agents (Claude, GPT, Codex, 
 - **Provider Switching**: Calling `AdsManager.initialize(...)` with a different provider automatically tears down the active adapter (`destroy()`), cancels active loads, and evicts all preloaded ads from cache.
 - **Java SPI Provider Discovery**: Concrete adapters implement `AdsProviderAdapterRegistrar` and register via `META-INF/services/com.kit.ads.provider.AdsProviderAdapterRegistrar`. At runtime, `AdsProviderAdapterFactory` uses `ServiceLoader` to discover providers present on the classpath.
 - **Main Thread Dispatch**: All public API callbacks (`AdsListener`, `AdsManager.initialize(onResult)`) are strictly dispatched to Android's **Main Thread** via `AdsLoadHandler` and Android `Handler(Looper.getMainLooper())`.
+- **GDPR Startup Order**: Both documentation and `:sample` UI follow `UMP.start(...)` → `AdsManager.initialize(...)` → `loadAd(...)` so third-party mediation adapters are not initialized prior to user consent.
 - **Zero Cross-Platform Leaks**: This repository is completely self-contained and must not include any iOS-specific dependencies, configurations, or references.
 
 ---
@@ -32,8 +33,8 @@ AdsKit-Android/
 │       │   ├── AdsEntity.kt               # Loaded ad wrapper with show(activity, container) and destroy()
 │       │   ├── AdsListener.kt             # Callback interface + AdCallback abstract base class
 │       │   ├── AdsPaidEvent.kt            # Revenue event data class (valueMicros, currencyCode, precision)
-│       │   ├── AdsLogger.kt               # Tagged structured logger with AdsKit-* prefix
-│       │   ├── AdsDebug.kt                # Shared debug flag & test device IDs
+│       │   ├── AdsLogger.kt               # Internal (@RestrictTo LIBRARY_GROUP) tagged logger
+│       │   ├── AdsDebug.kt                # Internal (@RestrictTo LIBRARY_GROUP) debug flag
 │       │   ├── AdsLoadHandler.kt          # Load execution & main-thread callback dispatcher
 │       │   ├── ump/
 │       │   │   └── UMP.kt                 # Google UMP consent flow wrapper
@@ -158,7 +159,16 @@ Official Google AdMob test IDs for Android (safe for development and verificatio
 | `DISPLAY_*` | AppLovin show-phase display failures (e.g. `DISPLAY_AD_ALREADY_SHOWN`) |
 | Platform codes | Raw error code strings passed through from AdMob or AppLovin SDKs |
 
-### Tagged Structured Logging
+### Tagged Structured Logging & Debug Switches
+
+`AdsLogger` and `AdsDebug` are internal to the SDK (`@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)`) and **must not be referenced by host apps**. Both default to **`false`** and are configured via `AdsManager.initialize(..., logEnabled = false, debugEnabled = false, ...)`. `UMP.start(...)` uses an independent local `debugEnabled` parameter and emits no internal SDK logs:
+
+| Parameter / API | Default | Scope & Side Effects |
+|---|---|---|
+| `AdsManager.initialize(..., logEnabled)` | `false` | Sets internal `AdsLogger.enabled`. Controls `AdsKit-*` Logcat output only; no behavioral side effects. |
+| `AdsManager.initialize(..., logListener)` / `setLogListener(...)` | `null` | External `AdsLogListener` interceptor (`AdsLogLevel`, `tag`, `message`, `throwable`). When non-null, intercepts all SDK logs and suppresses default Logcat output. |
+| `AdsManager.initialize(..., debugEnabled)` | `false` | Sets internal `AdsDebug.isEnabled`. **Test-mode toggle (has side effects)**: replaces AdMob `request.adUnitId` with official test unit IDs and enables AppLovin `setVerboseLogging(true)`. |
+| `UMP.start(activity, debugEnabled, umpTestDeviceIds, ...)` | `false`, `emptyList()` | Independent local UMP debug parameters (not tied to `AdsDebug`). When `debugEnabled == true`, simulates EEA geography and resets UMP consent. Recommended to run **before** `AdsManager.initialize(...)` for GDPR compliance. |
 
 All logs use the `AdsKit-{Component}` convention via `AdsLogger`:
 
@@ -169,7 +179,6 @@ All logs use the `AdsKit-{Component}` convention via `AdsLogger`:
 | `AdsKit-AdsEntity` | `AdsEntity.kt` | `show start/success`, `destroy` |
 | `AdsKit-Admob` | `AdmobProviderAdapter.kt` | `loadAd`, `onAdLoaded`, `showAd` |
 | `AdsKit-Applovin` | `ApplovinProviderAdapter.kt` | `loadAd`, `onAdLoaded`, `showAd` |
-| `AdsKit-UMP` | `UMP.kt` | `requestConsentInfoUpdate`, `loadAndShowConsentFormIfRequired` |
 | `AdsKit-Sample` | Demo App | User interactions, event stream logging |
 
 Logcat filter: Use `tag:AdsKit` to inspect all mediation operations.

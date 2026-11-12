@@ -1,17 +1,14 @@
 package com.kit.ads
 
+import androidx.annotation.RestrictTo
+
 /**
- * Debug-mode toggle shared across core and provider modules.
- * Defaults to [BuildConfig.DEBUG] in the core artifact.
+ * SDK 内部调试模式开关，由 [AdsManager.initialize] 中的 `debugEnabled` 参数统一赋值。
+ * 默认关闭（`false`），不对外公开引用。
  */
+@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
 object AdsDebug {
     @JvmField
-    var isEnabled: Boolean = BuildConfig.DEBUG
-
-    /**
-     * AdMob test device hashed IDs (from Logcat "Use RequestConfiguration...").
-     * Applied during AdMob initialize when [isEnabled] is true.
-     */
-    @JvmField
-    var admobTestDeviceIds: List<String> = emptyList()
+    @Volatile
+    var isEnabled: Boolean = false
 }

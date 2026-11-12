@@ -18,7 +18,6 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.OnPaidEventListener
-import com.google.android.gms.ads.RequestConfiguration
 import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
@@ -46,14 +45,6 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
     ) {
         d("initialize start")
         try {
-            if (AdsDebug.isEnabled && AdsDebug.admobTestDeviceIds.isNotEmpty()) {
-                MobileAds.setRequestConfiguration(
-                    RequestConfiguration.Builder()
-                        .setTestDeviceIds(AdsDebug.admobTestDeviceIds)
-                        .build(),
-                )
-                d("testDeviceIds=${AdsDebug.admobTestDeviceIds}")
-            }
             MobileAds.initialize(context) { initializationStatus ->
                 val statusMap = initializationStatus.adapterStatusMap
                 for ((adapterClass, status) in statusMap) {
@@ -71,13 +62,7 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
     }
 
     override fun openDebug(activity: Activity) {
-        val testDeviceIds = AdsDebug.admobTestDeviceIds.ifEmpty {
-            listOf("9204E5C14728DD6DD82CE0A440ED41F5")
-        }
-        d("openDebug testDeviceIds=$testDeviceIds")
-        MobileAds.setRequestConfiguration(
-            RequestConfiguration.Builder().setTestDeviceIds(testDeviceIds).build(),
-        )
+        d("openDebug")
         MobileAds.openAdInspector(activity) { error ->
             if (error != null) {
                 e("openAdInspector closed error=${error.message}")

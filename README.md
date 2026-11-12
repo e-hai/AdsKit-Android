@@ -193,13 +193,13 @@ dependencyResolutionManagement {
 ```kotlin
 dependencies {
     // 方案 A：全量包（推荐，开箱即用）
-    implementation("com.github.e-hai.AdsKit-Android:AdsKit:1.0.1")
+    implementation("com.github.e-hai.AdsKit-Android:AdsKit:1.0.2")
 
     // 方案 B：AdMob 瘦包（仅包含 AdMob 及中介）
-    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:1.0.1")
+    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:1.0.2")
 
     // 方案 C：AppLovin 瘦包（仅包含 AppLovin MAX 及中介）
-    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:1.0.1")
+    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:1.0.2")
 }
 ```
 
@@ -234,8 +234,7 @@ applovin.ad.unit.mrec=...
 | `AdsRequest` | `triggerId` / `adUnitId` / `adType` / `providerType` / `preloadTtlMs` |
 | `AdsType` | 见下表 |
 | `AdsProviderConfig` / `AdsProviderType` | Provider 配置 |
-| `UMP` | Google UMP（`:ads-core`） |
-| `AdsLogger` / `AdsDebug` | 日志开关；AdMob 测试设备 ID |
+| `UMP` | Google UMP（`:ads-core`，支持可选 `umpTestDeviceIds` 参数） |
 
 ### AdsType
 
@@ -252,7 +251,7 @@ applovin.ad.unit.mrec=...
 
 ## 核心 API
 
-- **`initialize(app, config, onResult?)`** — 单适配器；同 Provider 跳过 → `true`；并发 → `false`；切换清预加载；`onResult` 主线程
+- **`initialize(app, config, logEnabled = false, debugEnabled = false, onResult?)`** — 单适配器；统一配置日志与调试开关；同 Provider 跳过 → `true`；并发 → `false`；切换清预加载；`onResult` 主线程
 - **`getInitState()` / `getInitializedProviderType()`**
 - **`loadAd` / `preloadAd`** — 状态与 Provider 校验；预加载默认 TTL **55 分钟**（`AdsRequest.preloadTtlMs` 可覆盖）
 - **`destroy()`** — 释放适配器并清空缓存
@@ -260,11 +259,12 @@ applovin.ad.unit.mrec=...
 
 Provider 通过 **Java SPI** 注册；classpath 缺少对应模块时 `initialize()` 返回 `false`。
 
-### 推荐流程
+### 推荐流程（欧盟 GDPR 合规顺序）
 
-```
-AdMob:     initialize → UMP.start() → loadAd
-AppLovin:  UMP.start() → initialize → loadAd
+由于 SDK 集成了多个第三方中介适配器，为满足欧盟 GDPR / ePrivacy 隐私合规要求（在获取用户同意前不得触发三方 SDK 初始化与数据采集），**请务必先完成 `UMP.start()`，再调用 `AdsManager.initialize()`**：
+
+```text
+UMP.start() →（canRequestAds == true）→ AdsManager.initialize() → loadAd / preloadAd
 ```
 
 ### 回调
@@ -288,58 +288,74 @@ onAdFailedToShow(error, errorCode?)
 | `DISPLAY_*` | AppLovin 展示阶段错误 |
 | SDK 原生码 | AdMob / AppLovin 透传 |
 
-### 日志
+### 日志与调试开关
+
+> [!IMPORTANT]
+> **`logEnabled`** 与 **`debugEnabled`** 默认值均为 **`false`**，通过 `AdsManager.initialize(...)` 或 `UMP.start(...)` 传入；`AdsLogger` 与 `AdsDebug` 为 SDK 内部类（`@RestrictTo(LIBRARY_GROUP)`），不对外暴露引用。
+
+| 参数 / 入口 | 默认值 | 作用与副作用 |
+|---|---|---|
+| `AdsManager.initialize(..., logEnabled)` | `false` | **纯日志开关**：控制 SDK 内部是否通过 `AdsKit-*` TAG 输出默认 Logcat 日志，无任何业务副作用。 |
+| `AdsManager.initialize(..., logListener)` / `AdsManager.setLogListener(...)` | `null` | **外部日志拦截器**：非空时接管 SDK 全部日志输出（不再打印默认 Logcat），可转发至自研日志库或崩溃上报；传 `null` 恢复默认行为。 |
+| `AdsManager.initialize(..., debugEnabled)` | `false` | **广告 SDK 调试开关（含副作用）**：开启后会强制将 AdMob 请求替换为测试广告位 ID、开启 AppLovin `setVerboseLogging(true)`。**仅限本地调试，严禁线上开启。** |
+| `UMP.start(..., debugEnabled)` | `false` | **UMP 独立调试开关（局部变量，不关联 `AdsDebug`）**：开启后会模拟 EEA 地区并重置 UMP 隐私同意状态。 |
+| `UMP.start(..., umpTestDeviceIds)` | `emptyList()` | 仅用于真机调试 UMP 强制 EEA 地区弹窗时传入的哈希测试设备 ID 列表（仅 `UMP.start` 的 `debugEnabled = true` 时生效；AdMob 常规测试设备请在 AdMob 后台配置）。 |
+
+```kotlin
+// 可选：外部拦截 SDK 日志（例如转发至自定义日志库或 Crashlytics，无需依赖内部 AdsLogger）
+AdsManager.setLogListener { level, tag, message, throwable ->
+    // level: AdsLogLevel.DEBUG / WARN / ERROR
+    MyLogger.log(level.name, tag, message, throwable)
+}
+```
 
 - 过滤 Logcat **`AdsKit`** 可看到全部 SDK 日志（子 TAG 均含此前缀）
-- 常用子 TAG：`AdsKit-Admob`、`AdsKit-AppLovin`、`AdsKit-AdsLoadHandler`、`AdsKit-UMP`、`AdsKit-Sample`
+- 常用子 TAG：`AdsKit-Admob`、`AdsKit-AppLovin`、`AdsKit-AdsLoadHandler`、`AdsKit-Sample`
 - 格式统一为 `key=value`，例如：
   - 核心：`onAdLoaded id=... unit=... type=... provider=...`
   - 适配器：`loadAd` / `onAdShown` / `onAdFailedToLoad` / `showAd` / `destroyAd`
   - 生命周期：`initialize start/complete`、`destroy`、`clearPreloadedAds`、`loadAd rejected`
-- 失败用 `AdsLogger.e` / `w`；Release 默认静默（`AdsLogger.enabled` 跟随 `BuildConfig.DEBUG`）
-
-```kotlin
-// 可选：AdMob 测试设备（Sample 从 local.properties 注入）
-AdsDebug.admobTestDeviceIds = listOf("YOUR_HASHED_DEVICE_ID")
-```
 
 ## 使用示例
 
 ```kotlin
-class App : Application() {
-    override fun onCreate() {
-        super.onCreate()
-        AdsManager.initialize(
-            this,
-            AdsProviderConfig(AdsProviderType.ADMOB, "ca-app-pub-3940256099942544~3347511713"),
-        ) { success ->
-            Log.d("App", "init=$success state=${AdsManager.getInitState()}")
-        }
-    }
-}
+// 1. 在主界面先完成 UMP 隐私同意收集，再初始化广告 SDK
+UMP.start(
+    activity = this,
+    debugEnabled = false, // 本地测试 EEA 弹窗时可设为 BuildConfig.DEBUG
+) { canRequestAds ->
+    if (!canRequestAds) return@start
 
-// UMP → 加载 Banner
-UMP.start(activity) { _ ->
-    val request = AdsRequest(
-        triggerId = "home_banner",
-        adUnitId = "ca-app-pub-3940256099942544/9214589741",
-        adType = AdsType.BANNER,
-        providerType = AdsProviderType.ADMOB,
-    )
-    AdsManager.loadAd(activity, request, object : AdCallback() {
-        override fun onAdLoaded(ad: AdsEntity) {
-            ad.show(activity, bannerContainer)
-        }
-        override fun onAdFailedToLoad(error: String, errorCode: String?) {
-            Log.e("Ads", "load failed: $error ($errorCode)")
-        }
-        override fun onAdPaidEvent(paid: AdsPaidEvent) {
-            Log.d("Ads", "revenue micros=${paid.valueMicros} ${paid.currencyCode}")
-        }
-        override fun onAdFailedToShow(error: String, errorCode: String?) {
-            Log.e("Ads", "show failed: $error ($errorCode)")
-        }
-    })
+    AdsManager.initialize(
+        context = application,
+        config = AdsProviderConfig(AdsProviderType.ADMOB, "ca-app-pub-3940256099942544~3347511713"),
+        logEnabled = BuildConfig.DEBUG,
+        debugEnabled = false, // 本地需强制替换测试广告位时设为 BuildConfig.DEBUG
+    ) { success ->
+        if (!success) return@initialize
+
+        // 2. 加载并展示广告
+        val request = AdsRequest(
+            triggerId = "home_banner",
+            adUnitId = "ca-app-pub-3940256099942544/9214589741",
+            adType = AdsType.BANNER,
+            providerType = AdsProviderType.ADMOB,
+        )
+        AdsManager.loadAd(this, request, object : AdCallback() {
+            override fun onAdLoaded(ad: AdsEntity) {
+                ad.show(this@MainActivity, bannerContainer)
+            }
+            override fun onAdFailedToLoad(error: String, errorCode: String?) {
+                Log.e("Ads", "load failed: $error ($errorCode)")
+            }
+            override fun onAdPaidEvent(paid: AdsPaidEvent) {
+                Log.d("Ads", "revenue micros=${paid.valueMicros} ${paid.currencyCode}")
+            }
+            override fun onAdFailedToShow(error: String, errorCode: String?) {
+                Log.e("Ads", "show failed: $error ($errorCode)")
+            }
+        })
+    }
 }
 
 // onDestroy：Banner / Native / MREC 需 destroy
@@ -375,4 +391,5 @@ override fun onDestroy() {
 - CI：`.github/workflows/build.yml`（PR / 主分支构建与体积校验）
 - CD：`.github/workflows/publish.yml`（GitHub Packages 自动发布）
 
-更多实现细节、SPI、ProGuard、命名约定见 **`AGENTS.md`**。
+- 后台配置与上线 SOP 见 **[`docs/MEDIATION_SOP.md`](docs/MEDIATION_SOP.md)**。
+- 更多实现细节、SPI、ProGuard、命名约定见 **`AGENTS.md`**。

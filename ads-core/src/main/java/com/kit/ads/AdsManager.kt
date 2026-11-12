@@ -79,19 +79,43 @@ object AdsManager {
         request.preloadTtlMs ?: DEFAULT_PRELOAD_TTL_MS
 
     /**
+     * 设置或清除外部日志拦截器。
+     *
+     * 非空时 SDK 内部日志将不再输出到默认 Logcat，而是统一回调给 [listener]；
+     * 传 `null` 可恢复为受 `logEnabled` 控制的默认 Logcat 输出。
+     */
+    fun setLogListener(listener: AdsLogListener?) {
+        AdsLogger.logListener = listener
+    }
+
+    /**
      * 初始化广告提供商适配器。
      *
      * Must be called on the main thread. [onResult] is always invoked on the main thread.
      *
      * @param context 应用的上下文
      * @param config 广告提供商的配置
+     * @param logEnabled 是否开启 SDK 内部默认 Logcat 日志（默认 false；当配置了 [logListener] 时由拦截器接管）
+     * @param debugEnabled 是否开启调试模式（默认 false，仅限测试环境使用）
+     * @param logListener 可选外部日志拦截器（非空时覆盖注入，传 null 保留此前通过 [setLogListener] 设置的拦截器）
+     * @param onResult 初始化完成回调
      */
+    @JvmOverloads
     @MainThread
     fun initialize(
         context: Application,
         config: AdsProviderConfig,
+        logEnabled: Boolean = false,
+        debugEnabled: Boolean = false,
+        logListener: AdsLogListener? = null,
         onResult: ((success: Boolean) -> Unit)? = null,
     ) {
+        AdsLogger.enabled = logEnabled
+        AdsDebug.isEnabled = debugEnabled
+        if (logListener != null) {
+            AdsLogger.logListener = logListener
+        }
+
         val providerType = config.providerType
         if (testAdapterFactory == null && !AdsProviderAdapterFactory.isAvailable(providerType)) {
             AdsLogger.e(

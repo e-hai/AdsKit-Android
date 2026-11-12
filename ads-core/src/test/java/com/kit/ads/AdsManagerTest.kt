@@ -30,10 +30,12 @@ class AdsManagerTest {
     @Before
     fun setUp() {
         AdsManager.resetForTest()
+        AdsManager.setLogListener(null)
     }
 
     @After
     fun tearDown() {
+        AdsManager.setLogListener(null)
         AdsManager.resetForTest()
     }
 
@@ -398,6 +400,53 @@ class AdsManagerTest {
         drainMainLooper()
         assertTrue(latch.await(2, TimeUnit.SECONDS))
         return result
+    }
+
+    @Test
+    fun initialize_setsLogAndDebugSwitches() {
+        val fakeAdapter = FakeAdsProviderAdapter()
+        AdsManager.testAdapterFactory = { fakeAdapter }
+
+        AdsManager.initialize(app(), admobConfig())
+        drainMainLooper()
+        assertEquals(false, AdsLogger.enabled)
+        assertEquals(false, AdsDebug.isEnabled)
+
+        AdsManager.destroy()
+        AdsManager.initialize(
+            context = app(),
+            config = admobConfig(),
+            logEnabled = true,
+            debugEnabled = true,
+        )
+        drainMainLooper()
+        assertEquals(true, AdsLogger.enabled)
+        assertEquals(true, AdsDebug.isEnabled)
+    }
+
+    @Test
+    fun initialize_andSetLogListener_interceptsLogs() {
+        val fakeAdapter = FakeAdsProviderAdapter()
+        AdsManager.testAdapterFactory = { fakeAdapter }
+
+        val captured = mutableListOf<Pair<AdsLogLevel, String>>()
+        AdsManager.initialize(
+            context = app(),
+            config = admobConfig(),
+            logEnabled = false,
+            logListener = { level, tag, message, _ ->
+                captured += level to "[$tag] $message"
+            },
+        )
+        drainMainLooper()
+
+        assertTrue(captured.any { it.first == AdsLogLevel.DEBUG && it.second.contains("initialize start") })
+        assertTrue(captured.any { it.first == AdsLogLevel.DEBUG && it.second.contains("initialize complete") })
+
+        val countBeforeClear = captured.size
+        AdsManager.setLogListener(null)
+        AdsManager.destroy()
+        assertEquals(countBeforeClear, captured.size)
     }
 
     private fun app(): Application = ApplicationProvider.getApplicationContext()
