@@ -193,13 +193,13 @@ dependencyResolutionManagement {
 ```kotlin
 dependencies {
     // 方案 A：全量包（推荐，开箱即用）
-    implementation("com.github.e-hai.AdsKit-Android:AdsKit:1.0.2")
+    implementation("com.github.e-hai.AdsKit-Android:AdsKit:1.0.3")
 
     // 方案 B：AdMob 瘦包（仅包含 AdMob 及中介）
-    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:1.0.2")
+    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-admob:1.0.3")
 
     // 方案 C：AppLovin 瘦包（仅包含 AppLovin MAX 及中介）
-    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:1.0.2")
+    // implementation("com.github.e-hai.AdsKit-Android:AdsKit-applovin:1.0.3")
 }
 ```
 
@@ -297,7 +297,7 @@ onAdFailedToShow(error, errorCode?)
 |---|---|---|
 | `AdsManager.initialize(..., logEnabled)` | `false` | **纯日志开关**：控制 SDK 内部是否通过 `AdsKit-*` TAG 输出默认 Logcat 日志，无任何业务副作用。 |
 | `AdsManager.initialize(..., logListener)` / `AdsManager.setLogListener(...)` | `null` | **外部日志拦截器**：非空时接管 SDK 全部日志输出（不再打印默认 Logcat），可转发至自研日志库或崩溃上报；传 `null` 恢复默认行为。 |
-| `AdsManager.initialize(..., debugEnabled)` | `false` | **广告 SDK 调试开关（含副作用）**：开启后会强制将 AdMob 请求替换为测试广告位 ID、开启 AppLovin `setVerboseLogging(true)`。**仅限本地调试，严禁线上开启。** |
+| `AdsManager.initialize(..., debugEnabled)` | `false` | **广告 SDK 调试开关**：开启后会启用 AppLovin `setVerboseLogging(true)`；AdMob 不会自动替换广告位 ID，始终透传 `request.adUnitId`（测试时请直接传入官方测试广告位 ID 或在 AdMob 后台配置测试设备）。**仅限本地调试，严禁线上开启。** |
 | `UMP.start(..., debugEnabled)` | `false` | **UMP 独立调试开关（局部变量，不关联 `AdsDebug`）**：开启后会模拟 EEA 地区并重置 UMP 隐私同意状态。 |
 | `UMP.start(..., umpTestDeviceIds)` | `emptyList()` | 仅用于真机调试 UMP 强制 EEA 地区弹窗时传入的哈希测试设备 ID 列表（仅 `UMP.start` 的 `debugEnabled = true` 时生效；AdMob 常规测试设备请在 AdMob 后台配置）。 |
 
@@ -330,7 +330,7 @@ UMP.start(
         context = application,
         config = AdsProviderConfig(AdsProviderType.ADMOB, "ca-app-pub-3940256099942544~3347511713"),
         logEnabled = BuildConfig.DEBUG,
-        debugEnabled = false, // 本地需强制替换测试广告位时设为 BuildConfig.DEBUG
+        debugEnabled = false, // 本地调试 SDK（如 AppLovin verbose logging）时可设为 BuildConfig.DEBUG
     ) { success ->
         if (!success) return@initialize
 

@@ -26,7 +26,6 @@ import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdView
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
-import com.kit.ads.AdsDebug
 import com.kit.ads.AdsLogger
 import com.kit.ads.AdsPaidEvent
 import com.kit.ads.AdsRequest
@@ -95,7 +94,7 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
         request: AdsRequest,
         listener: AdsProviderListener,
     ) {
-        val unitId = resolveUnit(request, DEBUG_BANNER_AD_UNIT_ID)
+        val unitId = request.adUnitId
         val ad = AdView(context).apply {
             adUnitId = unitId
             val adWidth = defaultBannerAdWidth(context)
@@ -149,7 +148,7 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
         listener: AdsProviderListener,
     ) {
         listener.onAdStartedToLoad()
-        val unitId = resolveUnit(request, DEBUG_REWARDED_AD_UNIT_ID)
+        val unitId = request.adUnitId
         RewardedAd.load(
             context,
             unitId,
@@ -176,7 +175,7 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
         listener: AdsProviderListener,
     ) {
         listener.onAdStartedToLoad()
-        val unitId = resolveUnit(request, DEBUG_INTERSTITIAL_AD_UNIT_ID)
+        val unitId = request.adUnitId
         InterstitialAd.load(
             context,
             unitId,
@@ -204,7 +203,7 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
         listener: AdsProviderListener,
     ) {
         listener.onAdStartedToLoad()
-        val unitId = resolveUnit(request, DEBUG_NATIVE_AD_UNIT_ID)
+        val unitId = request.adUnitId
         AdLoader.Builder(context, unitId)
             .forNativeAd { nativeAd ->
                 nativeAd.setOnPaidEventListener { paid ->
@@ -246,7 +245,7 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
         request: AdsRequest,
         listener: AdsProviderListener,
     ) {
-        val unitId = resolveUnit(request, DEBUG_BANNER_AD_UNIT_ID)
+        val unitId = request.adUnitId
         val ad = AdView(context).apply {
             adUnitId = unitId
             setAdSize(AdSize.MEDIUM_RECTANGLE)
@@ -323,7 +322,7 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
         listener: AdsProviderListener,
     ) {
         listener.onAdStartedToLoad()
-        val unitId = resolveUnit(request, DEBUG_OPEN_AD_UNIT_ID)
+        val unitId = request.adUnitId
         AppOpenAd.load(
             context,
             unitId,
@@ -435,11 +434,6 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
 
     private companion object {
         private const val TAG = "AdsKit-Admob"
-        private const val DEBUG_OPEN_AD_UNIT_ID = "ca-app-pub-3940256099942544/9257395921"
-        private const val DEBUG_BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/9214589741"
-        private const val DEBUG_REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
-        private const val DEBUG_INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
-        private const val DEBUG_NATIVE_AD_UNIT_ID = "ca-app-pub-3940256099942544/2247696110"
 
         fun d(msg: String) = AdsLogger.d(TAG, msg)
 
@@ -452,9 +446,6 @@ internal class AdmobProviderAdapter : AdsProviderAdapter {
                 AdsLogger.e(TAG, msg)
             }
         }
-
-        fun resolveUnit(request: AdsRequest, debugUnit: String): String =
-            if (AdsDebug.isEnabled) debugUnit else request.adUnitId
 
         fun log(request: AdsRequest, event: String, unitId: String = request.adUnitId, extras: String = "") {
             val base = "$event id=${request.triggerId} unit=$unitId type=${request.adType}"

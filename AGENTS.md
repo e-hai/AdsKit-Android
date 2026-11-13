@@ -167,7 +167,7 @@ Official Google AdMob test IDs for Android (safe for development and verificatio
 |---|---|---|
 | `AdsManager.initialize(..., logEnabled)` | `false` | Sets internal `AdsLogger.enabled`. Controls `AdsKit-*` Logcat output only; no behavioral side effects. |
 | `AdsManager.initialize(..., logListener)` / `setLogListener(...)` | `null` | External `AdsLogListener` interceptor (`AdsLogLevel`, `tag`, `message`, `throwable`). When non-null, intercepts all SDK logs and suppresses default Logcat output. |
-| `AdsManager.initialize(..., debugEnabled)` | `false` | Sets internal `AdsDebug.isEnabled`. **Test-mode toggle (has side effects)**: replaces AdMob `request.adUnitId` with official test unit IDs and enables AppLovin `setVerboseLogging(true)`. |
+| `AdsManager.initialize(..., debugEnabled)` | `false` | Sets internal `AdsDebug.isEnabled`. Enables AppLovin `setVerboseLogging(true)`. Does not override AdMob `request.adUnitId` (callers pass test unit IDs explicitly when testing). |
 | `UMP.start(activity, debugEnabled, umpTestDeviceIds, ...)` | `false`, `emptyList()` | Independent local UMP debug parameters (not tied to `AdsDebug`). When `debugEnabled == true`, simulates EEA geography and resets UMP consent. Recommended to run **before** `AdsManager.initialize(...)` for GDPR compliance. |
 
 All logs use the `AdsKit-{Component}` convention via `AdsLogger`:
